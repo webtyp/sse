@@ -8,7 +8,7 @@ Client and Event Server, SSE (Server-Sent Events) protocol compatible with **Go*
 **Installation**
 
 ```bash
-go get github.com/tinywasm/sse
+go get webtyp.com/sse
 ```
 
 **Quick Links**

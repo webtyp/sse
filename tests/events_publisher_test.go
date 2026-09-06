@@ -3,13 +3,13 @@
 package sse_test
 
 import (
-	. "github.com/tinywasm/sse"
+	. "webtyp.com/sse"
 	"testing"
 	"time"
 
-	"github.com/tinywasm/events"
-	. "github.com/tinywasm/fmt"
-	"github.com/tinywasm/model"
+	"webtyp.com/events"
+	. "webtyp.com/fmt"
+	"webtyp.com/model"
 )
 
 type fakePayload struct{ Value string }

@@ -1,6 +1,6 @@
 package sse
 
-import "github.com/tinywasm/router"
+import "webtyp.com/router"
 
 // ChannelProvider resolves SSE channels for a connection.
 // Implemented by external packages (e.g., crudp session handler).

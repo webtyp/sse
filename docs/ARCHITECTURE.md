@@ -1,6 +1,6 @@
 # TinySSE Architecture
 
-> **Package:** `github.com/tinywasm/sse`
+> **Package:** `webtyp.com/sse`
 
 ## System Overview
 

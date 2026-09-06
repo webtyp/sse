@@ -3,14 +3,14 @@
 package sse_test
 
 import (
-	. "github.com/tinywasm/sse"
+	. "webtyp.com/sse"
 	"sync"
 	"testing"
 	"time"
 
-	. "github.com/tinywasm/fmt"
-	"github.com/tinywasm/router"
-	routermock "github.com/tinywasm/router/mock"
+	. "webtyp.com/fmt"
+	"webtyp.com/router"
+	routermock "webtyp.com/router/mock"
 )
 
 // mockChannelProvider implements ChannelProvider for testing.

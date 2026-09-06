@@ -3,7 +3,7 @@
 package sse
 
 import (
-	"github.com/tinywasm/router"
+	"webtyp.com/router"
 )
 
 // SSEServer handles Server-Sent Events streaming connections.

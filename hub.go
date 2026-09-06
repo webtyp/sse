@@ -6,7 +6,7 @@ import (
 	"bytes"
 	"sync"
 
-	. "github.com/tinywasm/fmt"
+	. "webtyp.com/fmt"
 )
 
 // hub manages SSE clients and broadcasting.

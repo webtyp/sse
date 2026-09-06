@@ -3,8 +3,8 @@
 package sse
 
 import (
-	"github.com/tinywasm/events"
-	"github.com/tinywasm/json"
+	"webtyp.com/events"
+	"webtyp.com/json"
 )
 
 // Publisher adapts an *SSEServer to events.Publisher. It is a separate wrapper type — NOT a

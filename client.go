@@ -5,7 +5,7 @@ package sse
 import (
 	"syscall/js"
 
-	"github.com/tinywasm/fmt"
+	"webtyp.com/fmt"
 )
 
 // SSEClient is the SSE client for WASM.

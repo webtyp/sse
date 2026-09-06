@@ -1,6 +1,6 @@
 package sse
 
-import "github.com/tinywasm/model"
+import "webtyp.com/model"
 
 var SSEMessageModel = model.Definition{
 	Name: "ssemessage",

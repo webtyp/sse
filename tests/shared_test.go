@@ -1,7 +1,7 @@
 package sse_test
 
 import (
-	. "github.com/tinywasm/sse"
+	. "webtyp.com/sse"
 	"testing"
 )
 

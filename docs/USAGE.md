@@ -5,7 +5,7 @@ This guide covers how to install and use `tinysse` for both server-side (Go) and
 ## Installation
 
 ```bash
-go get github.com/tinywasm/sse
+go get webtyp.com/sse
 ```
 
 ## Server-Side Implementation
@@ -22,8 +22,8 @@ package main
 import (
 	"log"
 
-	"github.com/tinywasm/router"
-	"github.com/tinywasm/sse"
+	"webtyp.com/router"
+	"webtyp.com/sse"
 )
 
 func main() {
@@ -97,7 +97,7 @@ package main
 
 import (
 	"fmt"
-	"github.com/tinywasm/sse"
+	"webtyp.com/sse"
 )
 
 func main() {
