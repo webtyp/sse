@@ -34,8 +34,6 @@ func (m *SSEMessage) DecodeFields(r model.FieldReader) {
 
 type SSEMessageList []*SSEMessage
 
-func (s *SSEMessageList) Schema() []model.Field { return nil }
-func (s *SSEMessageList) Pointers() []any     { return nil }
 func (s *SSEMessageList) Len() int             { return len(*s) }
 func (s *SSEMessageList) At(i int) model.Fielder { return (*s)[i] }
 func (s *SSEMessageList) Append() model.Fielder  { v := &SSEMessage{}; *s = append(*s, v); return v }
