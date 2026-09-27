@@ -16,14 +16,3 @@ type ChannelProvider interface {
 	//   - err: If non-nil, connection is rejected with 401/403
 	ResolveChannels(ctx router.Context) (channels []string, err error)
 }
-
-// SSEPublisher allows publishing messages to SSE clients.
-// Implemented by sse.SSEServer.
-type SSEPublisher interface {
-	// Publish sends data to clients subscribed to the specified channels.
-	// Data can contain newlines - tinysse handles them internally.
-	Publish(data []byte, channels ...string)
-
-	// PublishEvent sends data with an event type for client-side routing.
-	PublishEvent(event string, data []byte, channels ...string)
-}

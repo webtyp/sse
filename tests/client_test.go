@@ -3,34 +3,69 @@
 package sse_test
 
 import (
-	. "webtyp.com/sse"
 	"syscall/js"
 	"testing"
+
+	. "webtyp.com/sse"
 )
 
-// This test requires `wasmbrowsertest` or a similar environment.
-// If running in standard `go test`, it will be skipped by build tag.
+func setupMockEventSource() (getInstances func() []js.Value) {
+	var instances []js.Value
 
-func TestClientConnect(t *testing.T) {
-	// We cannot easily spin up a real server in WASM environment.
-	// Tests here typically verify JS interop or logic that doesn't require network
-	// OR use a mock EventSource if we can inject it.
-	// Since we use global `EventSource`, we can mock it in JS global scope!
-
-	// Mock EventSource
-	var esCreated bool
 	js.Global().Set("EventSource", js.FuncOf(func(this js.Value, args []js.Value) interface{} {
-		// Verify URL argument
-		if len(args) > 0 && args[0].String() == "/events" {
-			esCreated = true
-		}
-
-		// Return a valid object so Connect doesn't falter
 		obj := js.Global().Get("Object").New()
 		obj.Set("readyState", 0)
-		obj.Set("close", js.FuncOf(func(this js.Value, args []js.Value) interface{} { return nil }))
+		obj.Set("close", js.FuncOf(func(this js.Value, args []js.Value) interface{} {
+			obj.Set("readyState", 2)
+			return nil
+		}))
+
+		listeners := js.Global().Get("Array").New()
+		obj.Set("_listeners", listeners)
+
+		obj.Set("addEventListener", js.FuncOf(func(this js.Value, args []js.Value) interface{} {
+			name := args[0].String()
+			fn := args[1]
+			pair := js.Global().Get("Object").New()
+			pair.Set("name", name)
+			pair.Set("fn", fn)
+			listeners.Call("push", pair)
+			return nil
+		}))
+
+		instances = append(instances, obj)
 		return obj
 	}))
+
+	return func() []js.Value {
+		return instances
+	}
+}
+
+func dispatchNamedEvent(es js.Value, name string, eventObj js.Value) {
+	listeners := es.Get("_listeners")
+	if listeners.IsUndefined() || listeners.IsNull() {
+		return
+	}
+	length := listeners.Get("length").Int()
+	for i := 0; i < length; i++ {
+		pair := listeners.Index(i)
+		if pair.Get("name").String() == name {
+			pair.Get("fn").Invoke(eventObj)
+		}
+	}
+}
+
+func makeFakeEvent(eventType, eventID, data string) js.Value {
+	event := js.Global().Get("Object").New()
+	event.Set("type", eventType)
+	event.Set("lastEventId", eventID)
+	event.Set("data", data)
+	return event
+}
+
+func TestClientConnect(t *testing.T) {
+	getInstances := setupMockEventSource()
 
 	cfg := &Config{Log: testLog(t)}
 	tSSE := New(cfg)
@@ -40,26 +75,14 @@ func TestClientConnect(t *testing.T) {
 
 	client.Connect()
 
-	// Verify Connect called New
-	if !esCreated {
-		t.Fatal("EventSource constructor not called with expected URL")
+	instances := getInstances()
+	if len(instances) != 1 {
+		t.Fatalf("expected 1 EventSource instance, got %d", len(instances))
 	}
 }
 
 func TestClientOnMessage(t *testing.T) {
-	// Setup mock to capture the EventSource instance
-	var esInstance js.Value
-
-	// Mock EventSource to capture onmessage
-	js.Global().Set("EventSource", js.FuncOf(func(this js.Value, args []js.Value) interface{} {
-		// Create a real JS object so we can keep a reference to it
-		obj := js.Global().Get("Object").New()
-		obj.Set("readyState", 0)
-		obj.Set("close", js.FuncOf(func(this js.Value, args []js.Value) interface{} { return nil }))
-
-		esInstance = obj
-		return obj
-	}))
+	getInstances := setupMockEventSource()
 
 	tSSE := New(&Config{})
 	client := tSSE.Client(&ClientConfig{Endpoint: "/test"})
@@ -71,31 +94,188 @@ func TestClientOnMessage(t *testing.T) {
 
 	client.Connect()
 
-	if esInstance.IsUndefined() {
+	instances := getInstances()
+	if len(instances) == 0 {
 		t.Fatal("EventSource instance was not created")
 	}
 
-	onMessage := esInstance.Get("onmessage")
+	es := instances[0]
+	onMessage := es.Get("onmessage")
 	if onMessage.IsUndefined() {
 		t.Fatal("onmessage handler not set")
 	}
 
-	// Simulate incoming message
-	// Event object mock
-	// We need a JS object with 'data', 'lastEventId', 'type' properties
-	event := js.Global().Get("Object").New()
-	event.Set("data", "hello world")
-	event.Set("lastEventId", "123")
-	event.Set("type", "test-event")
-
+	event := makeFakeEvent("message", "123", "hello world")
 	onMessage.Invoke(event)
 
 	if received == nil {
 		t.Fatal("handler not called")
 	}
 
-	verifyMessage(t, received, "test-event", []byte("hello world"))
+	verifyMessage(t, received, "message", []byte("hello world"))
 	if received.Id != "123" {
 		t.Errorf("expected ID '123', got %s", received.Id)
+	}
+}
+
+func TestClientOnEvent_BeforeConnect(t *testing.T) {
+	getInstances := setupMockEventSource()
+
+	tSSE := New(&Config{})
+	client := tSSE.Client(&ClientConfig{Endpoint: "/events"})
+
+	var received *SSEMessage
+	client.OnEvent("chat_room.inbox.u1", func(msg *SSEMessage) {
+		received = msg
+	})
+
+	client.Connect()
+
+	instances := getInstances()
+	if len(instances) != 1 {
+		t.Fatalf("expected 1 instance, got %d", len(instances))
+	}
+
+	es := instances[0]
+	event := makeFakeEvent("chat_room.inbox.u1", "evt-1", "news available")
+	dispatchNamedEvent(es, "chat_room.inbox.u1", event)
+
+	if received == nil {
+		t.Fatal("OnEvent handler was not called")
+	}
+	verifyMessage(t, received, "chat_room.inbox.u1", []byte("news available"))
+	if received.Id != "evt-1" {
+		t.Errorf("expected ID 'evt-1', got %s", received.Id)
+	}
+}
+
+func TestClientOnEvent_AfterConnect(t *testing.T) {
+	getInstances := setupMockEventSource()
+
+	tSSE := New(&Config{})
+	client := tSSE.Client(&ClientConfig{Endpoint: "/events"})
+
+	client.Connect()
+
+	instances := getInstances()
+	if len(instances) != 1 {
+		t.Fatalf("expected 1 instance, got %d", len(instances))
+	}
+
+	var received *SSEMessage
+	client.OnEvent("dynamic_topic", func(msg *SSEMessage) {
+		received = msg
+	})
+
+	es := instances[0]
+	event := makeFakeEvent("dynamic_topic", "evt-2", "dynamic payload")
+	dispatchNamedEvent(es, "dynamic_topic", event)
+
+	if received == nil {
+		t.Fatal("OnEvent handler registered after Connect was not called")
+	}
+	verifyMessage(t, received, "dynamic_topic", []byte("dynamic payload"))
+}
+
+func TestClientOnEvent_SurvivesReconnect(t *testing.T) {
+	getInstances := setupMockEventSource()
+
+	// Mock setTimeout to immediately invoke callback
+	js.Global().Set("setTimeout", js.FuncOf(func(this js.Value, args []js.Value) interface{} {
+		cb := args[0]
+		cb.Invoke()
+		return nil
+	}))
+
+	tSSE := New(&Config{})
+	client := tSSE.Client(&ClientConfig{
+		Endpoint:             "/events",
+		RetryInterval:        10,
+		MaxRetryDelay:        50,
+		MaxReconnectAttempts: 3,
+	})
+
+	var received *SSEMessage
+	client.OnEvent("reconnect_topic", func(msg *SSEMessage) {
+		received = msg
+	})
+
+	client.Connect()
+
+	instances := getInstances()
+	if len(instances) != 1 {
+		t.Fatalf("expected 1 instance initially, got %d", len(instances))
+	}
+
+	firstES := instances[0]
+	// Simulate connection loss with readyState = 2 (CLOSED)
+	firstES.Set("readyState", 2)
+	onError := firstES.Get("onerror")
+	if !onError.IsUndefined() && !onError.IsNull() {
+		onError.Invoke()
+	}
+
+	// Verify reconnect created a second EventSource instance
+	instances = getInstances()
+	if len(instances) != 2 {
+		t.Fatalf("expected 2 instances after reconnect, got %d", len(instances))
+	}
+
+	secondES := instances[1]
+	event := makeFakeEvent("reconnect_topic", "evt-3", "after reconnect")
+	dispatchNamedEvent(secondES, "reconnect_topic", event)
+
+	if received == nil {
+		t.Fatal("OnEvent handler was not called on reconnected EventSource")
+	}
+	verifyMessage(t, received, "reconnect_topic", []byte("after reconnect"))
+}
+
+func TestClientOnEvent_EventFiltering(t *testing.T) {
+	getInstances := setupMockEventSource()
+
+	tSSE := New(&Config{})
+	client := tSSE.Client(&ClientConfig{Endpoint: "/events"})
+
+	var onMessageReceived *SSEMessage
+	var onEventReceived *SSEMessage
+
+	client.OnMessage(func(msg *SSEMessage) {
+		onMessageReceived = msg
+	})
+	client.OnEvent("named_event", func(msg *SSEMessage) {
+		onEventReceived = msg
+	})
+
+	client.Connect()
+
+	instances := getInstances()
+	es := instances[0]
+
+	// 1. Dispatch named event
+	namedEvt := makeFakeEvent("named_event", "101", "named payload")
+	dispatchNamedEvent(es, "named_event", namedEvt)
+
+	if onEventReceived == nil {
+		t.Error("OnEvent handler should have been called for named event")
+	}
+	if onMessageReceived != nil {
+		t.Error("OnMessage handler should NOT have been called for named event")
+	}
+
+	// Reset received holders
+	onEventReceived = nil
+	onMessageReceived = nil
+
+	// 2. Dispatch unnamed (onmessage) event
+	onMessage := es.Get("onmessage")
+	unnamedEvt := makeFakeEvent("message", "102", "unnamed payload")
+	onMessage.Invoke(unnamedEvt)
+
+	if onMessageReceived == nil {
+		t.Error("OnMessage handler should have been called for unnamed event")
+	}
+	if onEventReceived != nil {
+		t.Error("OnEvent handler should NOT have been called for unnamed event")
 	}
 }

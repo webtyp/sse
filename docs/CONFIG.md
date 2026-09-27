@@ -17,9 +17,12 @@ The `ServerConfig` struct is used when initializing the server with `.Server()`.
 
 ### Key Options
 
+- **Path**: The stream URL path, e.g. `"/events"`. Required by `MountAPI`.
+- **Access**: Access level for opening the stream (`model.AccessPublic`, `model.AccessAuthenticated`, or `model.AccessGuarded`).
+- **Resource**: The permission checked when `Access` is `model.AccessGuarded`. Must be empty unless `Access` is `model.AccessGuarded`.
 - **ClientChannelBuffer**: Controls the size of the Go channel for each connected client. Increase this if you send bursts of messages to prevent blocking.
 - **HistoryReplayBuffer**: Determines how many recent messages are stored for replay when a client reconnects with `Last-Event-ID`.
-- **ChannelProvider**: A required interface implementation that resolves which channels a client should be subscribed to based on the HTTP request.
+- **ChannelProvider**: A required interface implementation that resolves which channels a client should be subscribed to based on the HTTP request. Required by `MountAPI`.
 
 ## Client Configuration
 

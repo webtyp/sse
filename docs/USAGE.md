@@ -1,6 +1,6 @@
 # Usage Guide
 
-This guide covers how to install and use `tinysse` for both server-side (Go) and client-side (TinyGo/WASM).
+This guide covers how to install and use `webtyp.com/sse` for both server-side (Go) and client-side (TinyGo/WASM).
 
 ## Installation
 
@@ -10,11 +10,11 @@ go get webtyp.com/sse
 
 ## Server-Side Implementation
 
-The server component handles HTTP connections, channel resolution, and broadcasting.
+The server component handles HTTP connections, channel resolution, and broadcasting. `SSEServer` implements `router.APIModule`.
 
-### 1. Setup
+### 1. Setup & Mounting
 
-Create a new `SSEServer` using `New()` and `Server()`. You must provide a `ServerConfig`.
+Create a new `SSEServer` using `New()` and `Server()`. You must provide a `ServerConfig` including `Path`, `Access`, and `ChannelProvider`.
 
 ```go
 package main
@@ -22,33 +22,34 @@ package main
 import (
 	"log"
 
-	"webtyp.com/router"
+	"webtyp.com/model"
 	"webtyp.com/sse"
 )
 
 func main() {
 	// 1. Shared Config (Optional Logger)
-	cfg := &tinysse.Config{
+	cfg := &sse.Config{
 		Log: log.Println,
 	}
 
 	// 2. Server Config
-	serverCfg := &tinysse.ServerConfig{
+	serverCfg := &sse.ServerConfig{
+		Path:                "/events",
+		Access:              model.AccessPublic,
 		ClientChannelBuffer: 100,
 		HistoryReplayBuffer: 50,
 		ChannelProvider:     &MyChannelProvider{}, // See below
 	}
 
 	// 3. Initialize Server
-	sseServer := tinysse.New(cfg).Server(serverCfg)
+	sseServer := sse.New(cfg).Server(serverCfg)
 
-	// 4. Mount as a streaming route. Stream() is what guarantees the handler
-	//    gets a Streamer (a Context that can Flush) — no capability assertion.
-	r.Stream("/events", sseServer.StreamHandler())
+	// 4. Mount API route automatically with the router
+	sseServer.MountAPI(r)
 }
 ```
 
-`StreamHandler()` returns a `router.StreamFunc`, so the transport is supplied by whatever `router` implementation you mount (backend or WASM). The library never names `net/http`.
+`SSEServer` mounts itself as a `router.APIModule` via `MountAPI(r)`.
 
 ### 2. Channel Resolution
 
@@ -68,7 +69,7 @@ func (p *MyChannelProvider) ResolveChannels(ctx router.Context) ([]string, error
 
 ### 3. Broadcasting Messages
 
-Use the `Publish` or `PublishEvent` methods to send messages to subscribed clients.
+Use the `Publish` or `PublishEvent` methods to send messages to subscribed clients, or adapt with `sse.Publisher` (`events.Publisher`).
 
 ```go
 // Send a simple message to channel "all"
@@ -102,12 +103,12 @@ import (
 
 func main() {
 	// 1. Shared Config
-	cfg := &tinysse.Config{
+	cfg := &sse.Config{
 		Log: func(args ...any) { fmt.Println(args...) },
 	}
 
 	// 2. Client Config
-	clientCfg := &tinysse.ClientConfig{
+	clientCfg := &sse.ClientConfig{
 		Endpoint:             "/events",
 		RetryInterval:        1000, // 1 second
 		MaxRetryDelay:        5000,
@@ -115,11 +116,11 @@ func main() {
 	}
 
 	// 3. Initialize Client
-	client := tinysse.New(cfg).Client(clientCfg)
+	client := sse.New(cfg).Client(clientCfg)
 
 	// 4. Set Handlers
-	client.OnMessage(func(msg *tinysse.SSEMessage) {
-		fmt.Printf("Received ID: %s, Event: %s\n", msg.ID, msg.Event)
+	client.OnMessage(func(msg *sse.SSEMessage) {
+		fmt.Printf("Received ID: %s, Event: %s\n", msg.Id, msg.Event)
 		fmt.Printf("Data: %s\n", string(msg.Data))
 	})
 
@@ -135,14 +136,35 @@ func main() {
 }
 ```
 
-### 2. Handling Messages
+### 2. Receiving Named Events
 
-The `OnMessage` callback receives an `*SSEMessage` struct.
+Browsers deliver named SSE events (frames published with `PublishEvent` or `sse.Publisher`) exclusively to named event listeners. `OnMessage` receives unnamed frames (`type: "message"`).
 
-- **Data**: The payload is raw `[]byte`. You are responsible for parsing it (e.g., JSON unmarshal).
-- **Event**: The event name (e.g., "update", "alert").
-- **ID**: The message ID.
+Register callbacks for named events with `OnEvent`:
 
-### 3. Reconnection
+```go
+client.OnEvent("chat_room.inbox.u1", func(msg *sse.SSEMessage) {
+	fmt.Printf("Notification for chat inbox: %s\n", string(msg.Data))
+})
+```
 
-The library handles reconnection automatically based on `RetryInterval`. It also respects the `Last-Event-ID` to resume the stream from the last received message, ensuring no data loss during brief disconnects.
+Handlers registered with `OnEvent` work before or after `Connect()` and survive reconnects.
+
+### 3. Events Subscriber Adapter
+
+You can adapt an `*SSEClient` to `events.Subscriber` using `sse.Subscriber{Client: client}`:
+
+```go
+sub := sse.Subscriber{Client: client}
+sub.Subscribe("chat_room.inbox.u1", func(e events.Event) {
+	// e.Topic is "chat_room.inbox.u1"
+	// e.Payload is nil
+	// Refetch typed data via router.Caller
+})
+```
+
+**Nil-Payload Contract**: `Subscriber` delivers the TOPIC only (`e.Payload` is always `nil`). A subscriber cannot know which concrete model a topic carries; the intended pattern is notification ("topic X changed") followed by fetching typed data.
+
+### 4. Reconnection
+
+The library handles reconnection automatically based on `RetryInterval`. It also respects `Last-Event-ID` to resume the stream, ensuring no data loss during brief disconnects. Registered `OnEvent` listeners automatically re-attach to the new connection.

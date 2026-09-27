@@ -3,6 +3,7 @@
 package sse
 
 import (
+	"webtyp.com/model"
 	"webtyp.com/router"
 )
 
@@ -13,6 +14,8 @@ type SSEServer struct {
 	hub     *hub
 }
 
+var _ router.APIModule = (*SSEServer)(nil)
+
 // Server creates a new SSEServer instance.
 func (t *tinySSE) Server(c *ServerConfig) *SSEServer {
 	return &SSEServer{
@@ -22,9 +25,39 @@ func (t *tinySSE) Server(c *ServerConfig) *SSEServer {
 	}
 }
 
-// StreamHandler returns a router.StreamFunc that serves SSE to a connected Streamer.
-// Register it with: r.Stream(path, server.StreamHandler())
-func (s *SSEServer) StreamHandler() router.StreamFunc {
+// ModelName is the module identity (router.APIModule).
+func (s *SSEServer) ModelName() string {
+	return ModuleName
+}
+
+// MountAPI registers the stream route with the configured gate.
+func (s *SSEServer) MountAPI(r router.Router) {
+	if s.config.Path == "" {
+		panic("sse: ServerConfig.Path is required")
+	}
+	if s.config.ChannelProvider == nil {
+		panic("sse: ServerConfig.ChannelProvider is required")
+	}
+	if s.config.Access == model.AccessGuarded && s.config.Resource == "" {
+		panic("sse: ServerConfig.Resource is required when Access is AccessGuarded")
+	}
+	if s.config.Access != model.AccessGuarded && s.config.Resource != "" {
+		panic("sse: ServerConfig.Resource must be empty unless Access is AccessGuarded")
+	}
+
+	route := r.Stream(s.config.Path, s.streamHandler())
+	switch s.config.Access {
+	case model.AccessPublic:
+		route.Public()
+	case model.AccessAuthenticated:
+		route.Authenticated()
+	case model.AccessGuarded:
+		route.Requires(s.config.Resource, model.Read)
+	}
+}
+
+// streamHandler returns a router.StreamFunc that serves SSE to a connected Streamer.
+func (s *SSEServer) streamHandler() router.StreamFunc {
 	return func(st router.Streamer) {
 		// 1. Resolve channels
 		var channels []string
@@ -93,7 +126,7 @@ func (s *SSEServer) Publish(data []byte, channel string) {
 	}
 }
 
-// PublishEvent implements SSEPublisher.PublishEvent.
+// PublishEvent sends data with an event type for client-side routing.
 func (s *SSEServer) PublishEvent(event string, data []byte, channels ...string) {
 	s.hub.broadcast <- &broadcastMessage{
 		msg: &SSEMessage{
