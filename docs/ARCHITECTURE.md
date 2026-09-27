@@ -4,42 +4,33 @@
 
 ## System Overview
 
+`SSEServer` implements `router.APIModule` (`ModelName()` and `MountAPI(r)`), mounting itself as a streaming route with configured path and access gate (`model.Access`).
+
 ```mermaid
 flowchart TB
     subgraph Browser["🌐 Browser (WASM)"]
         APP["Go App\n(TinyGo WASM)"]
         ES["EventSource\nWrapper"]
-        TP["TokenProvider"]
+        SUB["sse.Subscriber"]
     end
     
     subgraph Server["🖥️ Server (Go)"]
+        PUB["sse.Publisher"]
         HUB["SSEHub"]
-        TV["TokenValidator"]
         BUF["Message Buffer"]
         CLIENTS["Clients Map"]
     end
     
-    subgraph CRUDP["📦 CRUDP Integration"]
-        HANDLER["Handler\nCreate/Update/Delete"]
-        RESPONSE["Response()\nbroadcast: []string"]
-    end
+    APP -->|"1. OnEvent / Subscribe"| ES
+    ES -->|"2. GET /events"| HUB
     
-    APP -->|"1. Request Logic"| TP
-    TP -->|"2. POST /auth/sse-token"| TV
-    TV -->|"3. SSE Token (Short-lived)"| TP
+    HUB -->|"3. Register"| CLIENTS
     
-    APP -- "4. Manual Connect" --> ES
-    ES -->|"5. GET /events?token=x&lastEventId=y"| HUB
-    
-    HUB -->|"6. Validate"| TV
-    HUB -->|"7. Register"| CLIENTS
-    
-    HANDLER -->|"8. Response(data, broadcast)"| RESPONSE
-    RESPONSE -->|"9. routeToSSE()"| HUB
-    HUB -->|"10. Store in"| BUF
-    HUB -->|"11. Broadcast"| CLIENTS
-    CLIENTS -->|"12. SSE data: {payload}"| ES
-    ES -->|"13. OnMessage (JSON Parse)"| APP
+    PUB -->|"4. Publish(Event)"| HUB
+    HUB -->|"5. Store in"| BUF
+    HUB -->|"6. Broadcast"| CLIENTS
+    CLIENTS -->|"7. SSE event: topic data: {payload}"| ES
+    ES -->|"8. OnEvent Callback"| SUB
 ```
 
 ## Connection Flow (Hybrid Reconnection)
@@ -52,56 +43,15 @@ sequenceDiagram
     participant Hub as SSEHub
 
     Note over App,Hub: 1. Initial Connection
-    App->>Server: POST /auth/sse-token
-    Server-->>App: Token T1
-    App->>ES: New EventSource(url + "?token=T1")
-    ES->>Server: Connection Request
+    App->>ES: New EventSource(url)
+    ES->>Server: Connection Request (MountAPI route)
     Server-->>ES: 200 OK (Stream Open)
 
     Note over App,Hub: 2. Network Drop (Native Retry)
     ES->>ES: Network Error
     ES-->>ES: Wait retryInterval
-    ES->>Server: Reconnect (same URL/Token)
+    ES->>Server: Reconnect
     Server-->>ES: 200 OK (Resumed)
-
-    Note over App,Hub: 3. Token Expiry (Manual Rotation)
-    ES->>ES: Net Error -> Retry
-    ES->>Server: Reconnect (Token T1 Expired)
-    Server-->>ES: 401 Unauthorized
-    ES->>App: OnError(AuthError/Close)
-    App->>Server: POST /auth/sse-token
-    Server-->>App: Token T2
-    App->>ES: New EventSource(url + "?token=T2&lastEventId=N")
-    ES->>Server: Connection Request
-    Server->>Hub: GetMessagesSince(N)
-    Hub-->>Server: Missed Messages
-    Server-->>ES: Replay + Stream Open
-```
-
-## Hub Architecture (Server-Only)
-
-```mermaid
-flowchart LR
-    subgraph SSEHub ["SSEHub (!wasm)"]
-        MU["sync.RWMutex"]
-        CLIENTS["map[string]*SSEClient"]
-        BUFFER["[]SSEMessage"]
-    end
-    
-    subgraph SSEClient
-        ID["ID string"]
-        UID["UserID string"]
-        ROLE["Role string"]
-        CHAN["Channels []string"]
-        SEND["Send chan []byte"]
-    end
-    
-    subgraph SharedModels ["models.go"]
-        DTO["SSEMessage DTO"]
-    end
-    
-    CLIENTS --> SSEClient
-    SSEHub --> SharedModels
 ```
 
 ## File Structure & Build Constraints
@@ -110,36 +60,38 @@ flowchart LR
 flowchart TB
     subgraph Shared["Shared Code (wasm & !wasm)"]
         TINYSSE["tinysse.go\nNew(), Config"]
-        MODELS["models.go\nSSEMessage, SSEError"]
+        MODELS["models.go\nSSEMessage"]
+        CONFIG["server_config.go\nServerConfig, ModuleName"]
     end
     
     subgraph ServerOnly["//go:build !wasm"]
-        SERVER["server.go\nrouter.StreamFunc"]
+        SERVER["server.go\nSSEServer, MountAPI"]
         HUB["hub.go\nSSEHub Logic"]
-        CLIENT["client.go\nSSEClient Struct"]
+        PUB["events_publisher.go\nPublisher Adapter"]
     end
     
     subgraph WASMOnly["//go:build wasm"]
-        WASM["wasm.go\nEventSource Wrapper\nReconnect Logic"]
+        CLIENT["client.go\nSSEClient, OnEvent"]
+        SUB["subscriber.go\nSubscriber Adapter"]
     end
     
     TINYSSE --> MODELS
     
     SERVER --> HUB
     SERVER --> MODELS
-    HUB --> CLIENT
     HUB --> MODELS
+    PUB --> SERVER
     
-    WASM --> MODELS
+    CLIENT --> MODELS
+    SUB --> CLIENT
 ```
 
 ## Key Design Decisions
 
 | Aspect | Decision | Reason |
 |--------|----------|--------|
+| **Mounting** | **`router.APIModule`** | `MountAPI` registers streaming route with `Path`, `Access`, `Resource`. |
+| **Browser Events** | **Named `addEventListener`** | Browser `OnMessage` only handles unnamed events; `OnEvent` registers named SSE handlers. |
+| **Pub/Sub Adapters** | **`Publisher` & `Subscriber`** | Adapter pattern to `events.Publisher` and `events.Subscriber`. |
 | **Hub Location** | **Server-Only** | Reduce WASM binary size. Client is single-connection. |
-| **Data Structure** | Map + Mutex | Fast lookup by ID in server. |
-| **Reconnection** | **Hybrid** | Native for network glitches, Manual for token rotation. |
-| **Protocol** | SSE Standard | `data: ...\n\n` required for browser compatibility. |
-| **Auth** | Query Token | Compatible with EventSource API. |
-| **Errors** | MessageType | Reuse properties of `tinystring.MessageType`. |
+| **Protocol** | **SSE Standard** | `event: ...\ndata: ...\n\n` for standard browser `EventSource` dispatch. |

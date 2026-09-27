@@ -1,5 +1,9 @@
 package sse
 
+import "webtyp.com/model"
+
+const ModuleName = "sse"
+
 // ServerConfig holds configuration strictly for the SSE stream handler.
 type ServerConfig struct {
 	// ClientChannelBuffer prevents blocking on slow clients.
@@ -15,8 +19,18 @@ type ServerConfig struct {
 	// Useful for log viewers where clients may connect after events are published.
 	ReplayAllOnConnect bool
 
-	// ChannelProvider resolves channels for each SSE connection.
-	// If nil, a default provider is used that rejects all connections
-	// with error "channel provider not configured".
+	// ChannelProvider resolves channels for each SSE connection. Required by MountAPI.
 	ChannelProvider ChannelProvider
+
+	// Path is the stream URL, e.g. "/events". Required.
+	Path string
+
+	// Access is who may open the stream. The zero value, model.AccessGuarded,
+	// requires an identity AND a permission on Resource (read).
+	// model.AccessAuthenticated requires only an identity; model.AccessPublic, none.
+	Access model.Access
+
+	// Resource is the permission checked when Access is model.AccessGuarded.
+	// Must be empty for the other two levels.
+	Resource model.Resource
 }
