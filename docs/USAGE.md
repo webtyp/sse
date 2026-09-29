@@ -10,7 +10,7 @@ go get webtyp.com/sse
 
 ## Server-Side Implementation
 
-The server component handles HTTP connections, channel resolution, and broadcasting. `SSEServer` implements `router.APIModule`.
+The server component handles HTTP connections, channel resolution, and broadcasting. `SSEServer` implements `router.APIModule`. Each SSE stream terminates automatically when the client disconnects.
 
 ### 1. Setup & Mounting
 
