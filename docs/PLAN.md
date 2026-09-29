@@ -2,8 +2,9 @@
 PLAN: "fix(sse): a stream ends when its client disconnects, not on the next failed write"
 EXECUTOR: jules
 REVIEWER: none
-STATUS: running
+STATUS: review
 SESSION: 17567039206527582536
+PR: https://github.com/webtyp/sse/pull/7
 ---
 
 > Este plan se despacha con el flujo CodeJob. Ver skill: agents-workflow.

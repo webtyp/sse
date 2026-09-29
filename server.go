@@ -105,12 +105,20 @@ func (s *SSEServer) streamHandler() router.StreamFunc {
 			s.hub.unregister <- client
 		}()
 
-		// 5. Loop: push messages until the client disconnects (Write error) or hub closes send
-		for msg := range client.send {
-			if _, err := st.Write(msg); err != nil {
+		// 5. Loop: push messages until the client disconnects (Done() or Write error) or hub closes send
+		for {
+			select {
+			case <-st.Done():
 				return
+			case msg, ok := <-client.send:
+				if !ok {
+					return
+				}
+				if _, err := st.Write(msg); err != nil {
+					return
+				}
+				st.Flush()
 			}
-			st.Flush()
 		}
 	}
 }

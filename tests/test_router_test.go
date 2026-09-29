@@ -93,4 +93,8 @@ func (m *mockStreamer) Output() string {
 	return string(m.ResponseBody())
 }
 
+func (m *mockStreamer) Done() <-chan struct{} {
+	return m.done
+}
+
 var _ router.Streamer = (*mockStreamer)(nil)
