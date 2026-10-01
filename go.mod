@@ -10,7 +10,7 @@ require (
 	webtyp.com/events v0.0.5
 	webtyp.com/json v0.5.27
 	webtyp.com/router v0.3.0
-	webtyp.com/server v0.2.65
+	webtyp.com/server v0.2.67
 )
 
 require (
