@@ -80,7 +80,6 @@ func (s *SSEServer) streamHandler() router.StreamFunc {
 		// 2. Set SSE headers
 		st.SetHeader("Content-Type", "text/event-stream")
 		st.SetHeader("Cache-Control", "no-cache")
-		st.SetHeader("Connection", "keep-alive")
 
 		// 3. Flush headers so the client knows the connection is open
 		st.WriteStatus(200)

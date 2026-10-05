@@ -95,3 +95,5 @@ flowchart TB
 | **Pub/Sub Adapters** | **`Publisher` & `Subscriber`** | Adapter pattern to `events.Publisher` and `events.Subscriber`. |
 | **Hub Location** | **Server-Only** | Reduce WASM binary size. Client is single-connection. |
 | **Protocol** | **SSE Standard** | `event: ...\ndata: ...\n\n` for standard browser `EventSource` dispatch. |
+| **HTTP/2 Transport** | **No hop-by-hop headers** | RFC 9113 §8.2.2 prohibits `Connection` in HTTP/2. TinySSE emits only `Content-Type: text/event-stream` and `Cache-Control: no-cache`. |
+
