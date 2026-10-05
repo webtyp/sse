@@ -23,5 +23,5 @@ webtyp.com/pwa v0.1.1 h1:WlOjjwOfiXTxzWaEAJZzp1DzgDxL/LoiLtemr52eAik=
 webtyp.com/pwa v0.1.1/go.mod h1:gnpAT+pdfEUL9KST58CoqQQRSLda9N237QiXJGCJpqc=
 webtyp.com/router v0.3.2 h1:4Sxvwg7x+4+sHs2PGo8C48CkS5lufIh/W43CzYLrqg0=
 webtyp.com/router v0.3.2/go.mod h1:C7IDoFEuwq8kTMeM+qzCPP9dY0Yd2PP8xU4zNiN0FAI=
-webtyp.com/server v0.2.70 h1:/UiAKhzvoqy5Cu/23NlRILKt1v8SzzEWv4G2LaRncag=
-webtyp.com/server v0.2.70/go.mod h1:N+v9E097s5UTbjMvboiR6fQ43w/Fpl5EhyE9wF8b3n8=
+webtyp.com/server v0.2.71 h1:tTebC68elwIFd7MWozFOPh6ikI7NM2mXELiyDe3hqqs=
+webtyp.com/server v0.2.71/go.mod h1:N+v9E097s5UTbjMvboiR6fQ43w/Fpl5EhyE9wF8b3n8=
