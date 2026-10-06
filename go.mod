@@ -8,7 +8,7 @@ require webtyp.com/model v0.2.2
 
 require (
 	webtyp.com/events v0.0.5
-	webtyp.com/json v0.5.27
+	webtyp.com/json v0.5.29
 	webtyp.com/router v0.3.2
 	webtyp.com/server v0.2.71
 )
@@ -19,5 +19,6 @@ require (
 	golang.org/x/net v0.55.0 // indirect
 	golang.org/x/text v0.38.0 // indirect
 	howett.net/plist v1.0.0 // indirect
+	webtyp.com/escape v0.1.0 // indirect
 	webtyp.com/pwa v0.1.1 // indirect
 )
