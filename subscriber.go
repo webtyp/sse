@@ -15,8 +15,21 @@ type Subscriber struct {
 	Client *SSEClient
 }
 
-func (s Subscriber) Subscribe(topic string, h events.Handler) {
-	s.Client.OnEvent(topic, func(*SSEMessage) { h(events.Event{Topic: topic}) })
+// subscription is the handle Subscribe returns. SSEClient has no unsubscribe, so Cancel only stops delivery: the
+// EventSource listener stays attached and ignores the message.
+type subscription struct{ cancelled bool }
+
+func (s *subscription) Cancel() { s.cancelled = true }
+
+func (s Subscriber) Subscribe(topic string, h events.Handler) events.Subscription {
+	sub := &subscription{}
+	s.Client.OnEvent(topic, func(*SSEMessage) {
+		if sub.cancelled {
+			return
+		}
+		h(events.Event{Topic: topic})
+	})
+	return sub
 }
 
 var _ events.Subscriber = Subscriber{}

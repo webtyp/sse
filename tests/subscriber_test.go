@@ -51,3 +51,26 @@ func TestSubscriber_DeliversTopicWithNilPayload(t *testing.T) {
 		t.Errorf("expected nil Payload, got %v", receivedEvent.Payload)
 	}
 }
+
+func TestSubscriber_CancelStopsDelivery(t *testing.T) {
+	getInstances := setupMockEventSource()
+
+	tSSE := New(&Config{})
+	client := tSSE.Client(&ClientConfig{Endpoint: "/events"})
+	sub := Subscriber{Client: client}
+
+	var callCount int
+	subscription := sub.Subscribe("chat_room.inbox.u1", func(events.Event) { callCount++ })
+
+	client.Connect()
+	es := getInstances()[0]
+
+	dispatchNamedEvent(es, "chat_room.inbox.u1", makeFakeEvent("chat_room.inbox.u1", "evt-1", ""))
+	subscription.Cancel()
+	subscription.Cancel()
+	dispatchNamedEvent(es, "chat_room.inbox.u1", makeFakeEvent("chat_room.inbox.u1", "evt-2", ""))
+
+	if callCount != 1 {
+		t.Fatalf("expected 1 delivery before Cancel and none after, got %d", callCount)
+	}
+}

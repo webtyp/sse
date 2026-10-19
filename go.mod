@@ -7,7 +7,7 @@ require webtyp.com/fmt v1.0.0
 require webtyp.com/model v0.2.3
 
 require (
-	webtyp.com/events v0.0.6
+	webtyp.com/events v0.1.0
 	webtyp.com/json v0.5.29
 	webtyp.com/router v0.4.3
 	webtyp.com/server v0.2.86

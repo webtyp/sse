@@ -156,12 +156,15 @@ You can adapt an `*SSEClient` to `events.Subscriber` using `sse.Subscriber{Clien
 
 ```go
 sub := sse.Subscriber{Client: client}
-sub.Subscribe("chat_room.inbox.u1", func(e events.Event) {
+subscription := sub.Subscribe("chat_room.inbox.u1", func(e events.Event) {
 	// e.Topic is "chat_room.inbox.u1"
 	// e.Payload is nil
 	// Refetch typed data via router.Caller
 })
+subscription.Cancel() // e.g. when the component unmounts: no more deliveries to this handler
 ```
+
+`Cancel` stops delivery only; `SSEClient` has no unsubscribe, so the underlying listener stays attached and ignores the message.
 
 **Nil-Payload Contract**: `Subscriber` delivers the TOPIC only (`e.Payload` is always `nil`). A subscriber cannot know which concrete model a topic carries; the intended pattern is notification ("topic X changed") followed by fetching typed data.
 
