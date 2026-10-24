@@ -20,5 +20,5 @@ require (
 	golang.org/x/text v0.38.0 // indirect
 	howett.net/plist v1.0.0 // indirect
 	webtyp.com/escape v0.1.0 // indirect
-	webtyp.com/pwa v0.2.0 // indirect
+	webtyp.com/pwa v0.2.13 // indirect
 )
