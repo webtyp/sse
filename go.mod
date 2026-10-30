@@ -9,7 +9,7 @@ require webtyp.com/model v0.2.12
 require (
 	webtyp.com/events v0.1.0
 	webtyp.com/json v0.5.37
-	webtyp.com/router v0.4.16
+	webtyp.com/router v0.4.17
 	webtyp.com/server v0.2.103
 )
 
