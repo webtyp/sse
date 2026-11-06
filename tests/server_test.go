@@ -179,3 +179,40 @@ func TestStreamHandlerHistoryReplay(t *testing.T) {
 
 	_ = &wg
 }
+
+// TestStreamHandlerClearHistory: after ClearHistory a new client is not replayed that channel's old messages, and
+// other channels keep theirs.
+func TestStreamHandlerClearHistory(t *testing.T) {
+	cfg := &Config{Log: testLog(t)}
+	tSSE := New(cfg)
+	provider := &mockChannelProvider{channels: []string{"all", "other"}}
+	server := tSSE.Server(&ServerConfig{
+		Path:                "/events",
+		Access:              model.AccessPublic,
+		ClientChannelBuffer: 10,
+		HistoryReplayBuffer: 10,
+		ReplayAllOnConnect:  true,
+		ChannelProvider:     provider,
+	})
+	var r testRouter
+	server.MountAPI(&r)
+
+	server.Publish([]byte("old-session"), "all")
+	server.Publish([]byte("other-channel"), "other")
+	time.Sleep(30 * time.Millisecond)
+	server.ClearHistory("all")
+	server.Publish([]byte("new-session"), "all")
+	time.Sleep(30 * time.Millisecond)
+
+	st := newMockStreamer("GET", "/events")
+	go r.Invoke("GET", "/events", st)
+	time.Sleep(100 * time.Millisecond)
+
+	output := st.Output()
+	if Contains(output, "data: old-session") {
+		t.Error("a cleared channel must not replay its old messages")
+	}
+	if !Contains(output, "data: new-session") || !Contains(output, "data: other-channel") {
+		t.Errorf("want the new message and the other channel's message, got %q", output)
+	}
+}

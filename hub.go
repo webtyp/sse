@@ -128,6 +128,20 @@ func (h *hub) addToHistory(msg *SSEMessage, channels []string) {
 	}
 }
 
+// clearHistory forgets every replayable message published only to channel.
+func (h *hub) clearHistory(channel string) {
+	h.historyMutex.Lock()
+	defer h.historyMutex.Unlock()
+	kept := h.history[:0]
+	for _, item := range h.history {
+		if len(item.channels) == 1 && item.channels[0] == channel {
+			continue
+		}
+		kept = append(kept, item)
+	}
+	h.history = kept
+}
+
 func (h *hub) replayHistory(client *clientConnection, lastEventID string) {
 	if h.config.HistoryReplayBuffer <= 0 {
 		return

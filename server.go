@@ -122,6 +122,14 @@ func (s *SSEServer) streamHandler() router.StreamFunc {
 	}
 }
 
+// ClearHistory forgets every replayable message published only to channel: a client that connects afterwards
+// starts from the next message. A new session of the same stream calls it so the old one is not replayed.
+//
+// Example: s.ClearHistory("logs/myapp")
+func (s *SSEServer) ClearHistory(channel string) {
+	s.hub.clearHistory(channel)
+}
+
 // Publish sends data to a single channel.
 func (s *SSEServer) Publish(data []byte, channel string) {
 	s.hub.broadcast <- &broadcastMessage{
