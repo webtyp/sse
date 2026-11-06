@@ -51,5 +51,5 @@ webtyp.com/pwa v0.2.13 h1:orDdhyL5sTR1WJVj8nHNY3D9kEVl46G1nFpiCTqLCbA=
 webtyp.com/pwa v0.2.13/go.mod h1:t5Q0fc9N7g7o72Nxbgc0+eP1RDJDvBAFPV0DrEde9R8=
 webtyp.com/router v0.4.17 h1:7aox2cih3c6qBAifZDjxzIQ4FOqVieaqdrlndFW1Ynk=
 webtyp.com/router v0.4.17/go.mod h1:LLQCn9sAWMGdkYr1OZZfoQTR3p8fjOV94JevlcHDYqE=
-webtyp.com/server v0.2.114 h1:CqBAOVbCx82QlcctZjknyt1EyfKv59EI49tDCg3/iMs=
-webtyp.com/server v0.2.114/go.mod h1:tA5uDyR1zzc4HfDiNLqxAB0YpK+dYBWKTOl919CdNEI=
+webtyp.com/server v0.2.115 h1:Yg32Zg6YJz9pj9l8lbQlGWmC5ET2pg6+G1gfw5oalRc=
+webtyp.com/server v0.2.115/go.mod h1:tA5uDyR1zzc4HfDiNLqxAB0YpK+dYBWKTOl919CdNEI=
