@@ -7,10 +7,12 @@ require webtyp.com/fmt v1.0.0
 require webtyp.com/model v0.2.12
 
 require (
+	webtyp.com/backoff v0.2.0
 	webtyp.com/events v0.1.0
 	webtyp.com/json v0.5.40
 	webtyp.com/router v0.4.17
 	webtyp.com/server v0.2.115
+	webtyp.com/time v0.6.5
 )
 
 require (
@@ -27,6 +29,7 @@ require (
 	golang.org/x/text v0.38.0 // indirect
 	golang.org/x/tools v0.45.0 // indirect
 	howett.net/plist v1.0.0 // indirect
+	webtyp.com/calendar v0.1.0 // indirect
 	webtyp.com/escape v0.1.0 // indirect
 	webtyp.com/pwa v0.2.13 // indirect
 )

@@ -4,6 +4,8 @@ package sse
 
 import (
 	"syscall/js"
+	"webtyp.com/backoff"
+	"webtyp.com/time"
 
 	"webtyp.com/fmt"
 )
@@ -149,12 +151,12 @@ func (c *SSEClient) reconnect() {
 		return
 	}
 
-	delay := c.config.RetryInterval * (1 << c.reconnectAttempts)
-	if delay > c.config.MaxRetryDelay {
-		delay = c.config.MaxRetryDelay
-	}
-	if delay <= 0 {
-		delay = 1000 // Default 1s if misconfigured
+	delay, err := c.reconnectDelay()
+	if err != nil {
+		if c.errorHandler != nil {
+			c.errorHandler(err)
+		}
+		return
 	}
 
 	js.Global().Call("setTimeout", js.FuncOf(func(this js.Value, args []js.Value) interface{} {
@@ -163,4 +165,19 @@ func (c *SSEClient) reconnect() {
 	}), delay)
 
 	c.reconnectAttempts++
+}
+
+// reconnectDelay answers, in milliseconds, how long to wait before the next reconnection: the delay doubles after each
+// failed attempt, from RetryInterval up to MaxRetryDelay (the policy is webtyp.com/backoff). An invalid pair of values
+// is an error: it is never replaced by a default.
+func (c *SSEClient) reconnectDelay() (int, error) {
+	policy, err := backoff.New(time.Duration(c.config.RetryInterval)*time.Millisecond, time.Duration(c.config.MaxRetryDelay)*time.Millisecond)
+	if err != nil {
+		return 0, err
+	}
+	wait, err := policy.DelayAfter(int64(c.reconnectAttempts) + 1)
+	if err != nil {
+		return 0, err
+	}
+	return int(wait.Milliseconds()), nil
 }

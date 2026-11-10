@@ -36,3 +36,10 @@ The `ClientConfig` struct is used when initializing the client with `.Client()`.
 - **RetryInterval**: Initial delay (in milliseconds) before attempting to reconnect.
 - **MaxRetryDelay**: Maximum delay for exponential backoff.
 - **MaxReconnectAttempts**: Limit on how many times to retry before giving up (0 = unlimited).
+
+
+### RetryInterval and MaxRetryDelay
+
+The `RetryInterval` defines the first wait in milliseconds before reconnecting (must be greater than zero).
+The `MaxRetryDelay` defines the longest wait in milliseconds (must be at least RetryInterval).
+The wait doubles after each failed attempt from `RetryInterval` up to `MaxRetryDelay` (milliseconds). The policy is `webtyp.com/backoff`. An invalid pair is reported through `OnError` and not retried.
