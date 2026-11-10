@@ -15,7 +15,7 @@ type testRouter struct {
 
 func (tr *testRouter) Stream(path string, h router.StreamFunc) router.Route {
 	route := tr.Router.Stream(path, h)
-	tr.Router.Get(path, func(ctx router.Context) {
+	tr.Get(path, func(ctx router.Context) {
 		if st, ok := ctx.(router.Streamer); ok {
 			h(st)
 		}

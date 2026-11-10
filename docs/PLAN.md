@@ -2,8 +2,10 @@
 PLAN: "refactor: the reconnect delay comes from webtyp.com/backoff instead of a private copy"
 EXECUTOR: jules
 REVIEWER: none
-STATUS: running
+STATUS: review
 SESSION: 8356451411321901358
+PR: https://github.com/webtyp/sse/pull/8
+REVIEWED_COMMIT: 0481358f45042b33e048f7d81aea9a2204b8757b
 ---
 
 > Read AGENTS.md at the repo root before any change.
