@@ -33,13 +33,7 @@ The `ClientConfig` struct is used when initializing the client with `.Client()`.
 ### Key Options
 
 - **Endpoint**: The URL of the SSE server (e.g., `/events`).
-- **RetryInterval**: Initial delay (in milliseconds) before attempting to reconnect.
-- **MaxRetryDelay**: Maximum delay for exponential backoff.
+- **RetryInterval**: First wait in milliseconds before reconnecting; must be greater than zero.
+- **MaxRetryDelay**: Longest wait in milliseconds; must be at least `RetryInterval`. The wait doubles after each failed attempt from `RetryInterval` up to this value (the policy is `webtyp.com/backoff`). An invalid pair is reported through `OnError` and the client does not reconnect.
 - **MaxReconnectAttempts**: Limit on how many times to retry before giving up (0 = unlimited).
 
-
-### RetryInterval and MaxRetryDelay
-
-The `RetryInterval` defines the first wait in milliseconds before reconnecting (must be greater than zero).
-The `MaxRetryDelay` defines the longest wait in milliseconds (must be at least RetryInterval).
-The wait doubles after each failed attempt from `RetryInterval` up to `MaxRetryDelay` (milliseconds). The policy is `webtyp.com/backoff`. An invalid pair is reported through `OnError` and not retried.
