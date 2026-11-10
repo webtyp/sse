@@ -2,8 +2,6 @@
 PLAN: "refactor: the reconnect delay comes from webtyp.com/backoff instead of a private copy"
 EXECUTOR: jules
 REVIEWER: none
-STATUS: running
-SESSION: 7000972396822201409
 ---
 
 > Read AGENTS.md at the repo root before any change.
@@ -30,7 +28,7 @@ if delay <= 0 {
 }
 ```
 
-The ecosystem has one library for exactly this, `webtyp.com/backoff` (published `v0.1.0`; four repos had a private copy, this is one). The same logic never lives in two repos: this plan deletes the copy and imports the library. The public fields `ClientConfig.RetryInterval` and `ClientConfig.MaxRetryDelay` (milliseconds, `int`) **do not change** (no consumer changes); the client converts them inside.
+The ecosystem has one library for exactly this, `webtyp.com/backoff` (published `v0.2.0`; four repos had a private copy, this is one). The same logic never lives in two repos: this plan deletes the copy and imports the library. The public fields `ClientConfig.RetryInterval` and `ClientConfig.MaxRetryDelay` (milliseconds, `int`) **do not change** (no consumer changes); the client converts them inside.
 
 **Already in the working tree, part of this delivery, do NOT revert or touch:** `AGENTS.md` (the `reflect` row says `definitionc`), `models.go` renamed to `definition.go`, `models_orm.go` renamed to `definition_gen.go`.
 
@@ -38,7 +36,7 @@ The ecosystem has one library for exactly this, `webtyp.com/backoff` (published 
 
 ```bash
 go install webtyp.com/devflow/cmd/gotest@latest
-go get webtyp.com/backoff@v0.1.0 webtyp.com/time@v0.6.4
+go get webtyp.com/backoff@v0.2.0 webtyp.com/time@v0.6.5
 go mod tidy
 ```
 `GOPRIVATE=webtyp.com/*,github.com/veltylabs/*`, `GOFLAGS=-mod=mod`; no `replace` in `go.mod`. If a module cannot be fetched, stop and say so in the PR; never invent a hash.
@@ -47,22 +45,14 @@ go mod tidy
 
 | Symbol | Exact signature | Tag | File |
 |---|---|---|---|
-| `backoff.New` | `func New(first, longest time.Nano) (Policy, error)` — `time` is `webtyp.com/time`; `first` must be > 0 and `longest` ≥ `first` | backoff v0.1.0 | `backoff.go` |
-| `Policy.DelayAfter` | `func (p Policy) DelayAfter(failures int64) (time.Nano, error)` — `failures` is how many have happened (1 → `first`, 2 → `2×first`, …, never above `longest`); a zero `Policy` answers `ErrPolicyNotCreated` | backoff v0.1.0 | `backoff.go` |
-| `backoff.ErrFirstDelayNotPositive`, `backoff.ErrLongestBelowFirst` | typed string constants, comparable with `==`; each message says what happened, whether data is harmed and what to do | backoff v0.1.0 | `errors.go` |
-| `time.Nano` | `type Nano int64` (nanoseconds) | time v0.6.4 | `api.go` |
-
-`webtyp.com/time` has NO millisecond constant: the plan declares one (Stage 1).
+| `backoff.New` | `func New(first, longest time.Duration) (Policy, error)` — `time` is `webtyp.com/time`; `first` must be > 0 and `longest` ≥ `first` | backoff v0.2.0 | `backoff.go` |
+| `Policy.DelayAfter` | `func (p Policy) DelayAfter(failures int64) (time.Duration, error)` — `failures` is how many have happened (1 → `first`, 2 → `2×first`, …, never above `longest`); a zero `Policy` answers `ErrPolicyNotCreated` | backoff v0.2.0 | `backoff.go` |
+| `backoff.ErrFirstDelayNotPositive`, `backoff.ErrLongestBelowFirst` | typed string constants, comparable with `==`; each message says what happened, whether data is harmed and what to do | backoff v0.2.0 | `backoff.go` |
+| `time.Duration`, `time.Millisecond` | `type Duration int64` (nanoseconds); `Millisecond Duration`; `(Duration) Milliseconds() int64` | time v0.6.5 | `api.go` |
 
 ## Stage 1 — `client.go` and `client_config.go`
 
-1. `client_config.go`: add, below the struct, written exactly:
-
-```go
-// nanosPerMillisecond converts the millisecond fields of ClientConfig into the nanoseconds webtyp.com/backoff counts in.
-const nanosPerMillisecond time.Nano = 1000000
-```
-   and import `"webtyp.com/time"` (the file keeps its `//go:build wasm` line). Update the two field comments to say `RetryInterval`: «first wait in milliseconds before reconnecting; must be greater than zero» and `MaxRetryDelay`: «longest wait in milliseconds; must be at least RetryInterval». Add to the struct comment: «An invalid pair is reported through OnError and the client does not reconnect.»
+1. `client_config.go`: update the two field comments only: `RetryInterval`: «first wait in milliseconds before reconnecting; must be greater than zero» and `MaxRetryDelay`: «longest wait in milliseconds; must be at least RetryInterval». Add to the struct comment: «An invalid pair is reported through OnError and the client does not reconnect.» The file keeps its `//go:build wasm` line and gets no new import or constant.
 2. `client.go`: replace the whole `reconnect` method with exactly the code below, and add the imports `"webtyp.com/backoff"` and `"webtyp.com/time"` (keep `syscall/js` and `webtyp.com/fmt`):
 
 ```go
@@ -96,7 +86,7 @@ func (c *SSEClient) reconnect() {
 // failed attempt, from RetryInterval up to MaxRetryDelay (the policy is webtyp.com/backoff). An invalid pair of values
 // is an error: it is never replaced by a default.
 func (c *SSEClient) reconnectDelay() (int, error) {
-	policy, err := backoff.New(time.Nano(c.config.RetryInterval)*nanosPerMillisecond, time.Nano(c.config.MaxRetryDelay)*nanosPerMillisecond)
+	policy, err := backoff.New(time.Duration(c.config.RetryInterval)*time.Millisecond, time.Duration(c.config.MaxRetryDelay)*time.Millisecond)
 	if err != nil {
 		return 0, err
 	}
@@ -104,7 +94,7 @@ func (c *SSEClient) reconnectDelay() (int, error) {
 	if err != nil {
 		return 0, err
 	}
-	return int(wait / nanosPerMillisecond), nil
+	return int(wait.Milliseconds()), nil
 }
 ```
    (`reconnectAttempts` starts at 0 and counts the failures already retried, so the first reconnection is failure number 1: `DelayAfter(1)` = `RetryInterval`, exactly what `RetryInterval << 0` was.)
