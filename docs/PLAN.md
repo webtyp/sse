@@ -2,6 +2,8 @@
 PLAN: "refactor: the reconnect delay comes from webtyp.com/backoff instead of a private copy"
 EXECUTOR: jules
 REVIEWER: none
+STATUS: running
+SESSION: 8356451411321901358
 ---
 
 > Read AGENTS.md at the repo root before any change.
