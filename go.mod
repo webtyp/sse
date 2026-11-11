@@ -4,7 +4,7 @@ go 1.26.8
 
 require webtyp.com/fmt v1.0.0
 
-require webtyp.com/model v0.2.20
+require webtyp.com/model v0.2.21
 
 require (
 	webtyp.com/backoff v0.2.0
